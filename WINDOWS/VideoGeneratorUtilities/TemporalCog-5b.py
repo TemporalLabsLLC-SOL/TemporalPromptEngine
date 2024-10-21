@@ -41,7 +41,7 @@ from transformers import AutoTokenizer, pipeline
 # Summarization settings
 TOKENIZER_NAME = "gpt2"  # Tokenizer compatible with your summarization model
 SUMMARIZATION_MODEL = "facebook/bart-large-cnn"  # Summarization model
-POSITIVE_MAX_TOKENS = 160  # Max tokens for positive prompts
+POSITIVE_MAX_TOKENS = 210  # Max tokens for positive prompts
 NEGATIVE_MAX_TOKENS = 60   # Max tokens for negative prompts
 POSITIVE_MIN_TOKENS = 80   # Min tokens for positive prompts
 NEGATIVE_MIN_TOKENS = 30   # Min tokens for negative prompts
@@ -79,15 +79,14 @@ except Exception as e:
 
 def summarize_text(text: str, max_tokens: int = 220, min_tokens: int = 30) -> str:
     """
-    Refines and truncates the input text to fit within the specified token limit, preserving essential details.
+    Truncates the input text to fit within the specified token limit without summarizing.
 
     Parameters:
-    - text (str): The input text to refine.
+    - text (str): The input text to process.
     - max_tokens (int): The maximum number of tokens allowed.
-    - min_tokens (int): The minimum number of tokens to preserve after refinement.
 
     Returns:
-    - str: The refined and truncated text adhering to the token limit.
+    - str: The text truncated to the token limit.
     """
     if not tokenizer:
         print("Tokenizer not initialized. Returning original text.")
@@ -97,24 +96,19 @@ def summarize_text(text: str, max_tokens: int = 220, min_tokens: int = 30) -> st
     tokens = tokenizer.encode(text, return_tensors="pt")
     num_tokens = tokens.shape[1]
 
-    # If the input is already within limits, return as is
+    # If the input is within limits, return as is
     if num_tokens <= max_tokens:
         return text
 
-    # Summarize the text to fit within the token limit
-    try:
-        summary = summarizer(
-            text,
-            max_length=max_tokens,
-            min_length=min_tokens,
-            do_sample=False,
-            truncation=True,
-        )[0]['summary_text']
-        return summary
-    except Exception as e:
-        print(f"Error during summarization: {e}")
-        # If summarization fails, fallback to truncation
-        return truncate_to_token_limit(text, max_tokens)
+    # Truncate the text to the maximum token limit
+    truncated_text = tokenizer.decode(tokens[0, :max_tokens], skip_special_tokens=True)
+
+    print("Prompt was too long and has been truncated to fit the model's token limit.")
+    print(f"Original Prompt Length: {num_tokens} tokens")
+    print(f"Truncated Prompt Length: {max_tokens} tokens")
+
+    return truncated_text
+
 
 def truncate_to_token_limit(text: str, max_tokens: int) -> str:
     """
